@@ -7,22 +7,17 @@
     <title>snow-canvas demo</title>
 
     <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
-
-    <link rel="import" href="../../iron-demo-helpers/demo-pages-shared-styles.html">
-    <link rel="import" href="../../iron-demo-helpers/demo-snippet.html">
     <link rel="import" href="../snow-canvas.html">
 
-    <style is="custom-style" include="demo-pages-shared-styles">
+    <style>
+      body {
+        background: #ddd;
+      }
     </style>
   </head>
   <body>
-    <div class="vertical-section-container centered">
-      <h3>Basic snow-canvas demo</h3>
-      <demo-snippet>
-        <template>
-          <snow-canvas></snow-canvas>
-        </template>
-      </demo-snippet>
-    </div>
+  
+    <snow-canvas fixed active max-flakes="400"></snow-canvas>
+
   </body>
 </html>
