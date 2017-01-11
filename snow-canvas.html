@@ -1,0 +1,217 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/iron-resizable-behavior/iron-resizable-behavior.html">
+
+<dom-module id="snow-canvas">
+  <template>
+    <style>
+      :host {
+        bottom: 0;
+        display: block;
+        left: 0;
+        pointer-events: none;
+        position: fixed;
+        right: 0;
+        top: 0;
+        z-index: 9999;
+      }
+
+      #canvas {
+        height: 100%;
+        width: 100%;
+        background: transparent;
+      }
+    </style>
+
+    <canvas id="canvas"></canvas>
+
+  </template>
+</dom-module>
+
+<script>
+(function() {
+  'use strict';
+
+  Polymer({
+
+    is: 'snow-canvas',
+    
+    behaviors: [
+      Polymer.IronResizableBehavior
+    ],
+
+    properties: {
+
+      maxParticles: {
+        type: Number,
+        value: 140,
+        observer: '_maxParticlesChanged'
+      },
+
+      auto: {
+        type: Boolean,
+        value: false
+      },
+
+      animating: {
+        type: Boolean,
+        value: false,
+        readOnly: true,
+        reflectToAttribute: true
+      },
+
+      _particles: Array,
+
+      _currentAngle: {
+        type: Number,
+        value: 0
+      },
+
+      _drawFlakeInterval: Number,
+
+      _rect: Object,
+
+    },
+
+    observers: [
+      '_autoChanged(auto, isAttached)'
+    ],
+
+    listeners: {
+      'iron-resize': '_onIronResize'
+    },
+
+    detached() {
+      this._clearDrawFlakeInterval();
+    },
+
+    start() {
+      const ctx = this.$.canvas.getContext("2d");
+
+      // Canvas dimensions
+      this._rect = this.$.canvas.getBoundingClientRect();
+
+      if (this._rect.width === 0) {
+        console.warn('cp-snow container can\'t have a zero width');
+        return;
+      }
+
+      this.$.canvas.width = this._rect.width;
+      this.$.canvas.height = this._rect.height;
+
+      // Snowflake particles
+      this._particles = [];
+
+      for(let i = 0; i < this.maxParticles; i++) {
+        this._particles.push({
+          x: Math.random() * this._rect.width, //x-coordinate
+          y: Math.random() * this._rect.height, //y-coordinate
+          r: Math.random() * 4+1, //radius
+          d: Math.random() * this.maxParticles //density
+        });
+      }
+
+      // Animation loop
+      this._drawFlakeInterval = setInterval(_ => {
+        this._drawFlake(ctx);
+      }, 33);
+
+      this._setAnimating(true);
+    },
+
+    stop() {
+      this._clearDrawFlakeInterval();
+      this._particles = [];
+      this._currentAngle = 0;
+      this.$.canvas.getContext("2d").clearRect(0, 0, this.$.canvas.width, this.$.canvas.height);
+      this._setAnimating(false);
+    },
+
+    _drawFlake(ctx) {
+      ctx.clearRect(0, 0, this._rect.width, this._rect.height);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.beginPath();
+
+      for(let i = 0; i < this.maxParticles; i++) {
+        const p = this._particles[i];
+        ctx.moveTo(p.x, p.y);
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2, true);
+      }
+
+      ctx.fill();
+      this._moveFlakes();      
+    },
+
+    /**
+     * Function to move the snowflakes.
+     * Angle will be an ongoing incremental flag. Sin and Cos functions will be applied
+     * to it to create vertical and horizontal movements of the flakes.
+     */
+    _moveFlakes() {
+      this._currentAngle += 0.01;
+
+      for(let i = 0; i < this.maxParticles; i++) {
+        const p = this._particles[i];
+        // Updating X and Y coordinates
+        // We will add 1 to the cos function to prevent negative values which will lead flakes to move upwards
+        // Every particle has its own density which can be used to make the downward movement different for each flake
+        // Lets make it more random by adding in the radius
+        p.y += Math.cos(this._currentAngle + p.d) + 1 + p.r/2;
+        p.x += Math.sin(this._currentAngle) * 2;
+        
+        // Sending flakes back from the top when it exits
+        // Lets make it a bit more organic and let flakes enter from the left and right also.
+        if(p.x > this._rect.width + 5 || p.x < -5 || p.y > this._rect.height) {
+          // 66.67% of the flakes
+          if(i % 3 > 0) {
+            this._particles[i] = {x: Math.random() * this._rect.width, y: -10, r: p.r, d: p.d};
+          } else {
+            // If the flake is exitting from the right
+            if (Math.sin(this._currentAngle) > 0) {
+              // Enter from the left
+              this._particles[i] = {x: -5, y: Math.random() * this._rect.height, r: p.r, d: p.d};
+            } else {
+              // Enter from the right
+              this._particles[i] = {x: this._rect.width + 5, y: Math.random() * this._rect.height, r: p.r, d: p.d};
+            }
+          }
+        }
+      }      
+    },
+
+    _restartAnimation() {
+      this.stop();
+
+      this.async(_ => {
+        this.start();
+      }, 100);
+    },
+
+    _autoChanged(auto) {
+      if (auto) {
+        this._restartAnimation();
+      }
+    },
+
+    _clearDrawFlakeInterval() {
+      if (this._drawFlakeInterval) {
+        clearInterval(this._drawFlakeInterval);
+        this._drawFlakeInterval = null;
+      }
+    },
+
+    _maxParticlesChanged() {
+      if (this.animating) {
+        this._restartAnimation();
+      }
+    },
+
+    _onIronResize() {
+      if (this.animating) {
+        this._restartAnimation();
+      }
+    }
+  
+  });
+
+}());
+</script>
